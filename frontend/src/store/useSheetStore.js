@@ -214,9 +214,9 @@ export const useSheetStore = create((set, get) => ({
     });
   },
 
-  addQuestion: async (subTopicId, title) => {
+  addQuestion: async (subTopicId, questionData) => {
     try {
-      const q = await mockApi.createQuestion(subTopicId, title);
+      const q = await mockApi.createQuestion(subTopicId, questionData);
       set((s) => ({
         questions: { ...s.questions, [q.id]: q },
         subTopics: {

@@ -183,7 +183,7 @@ export const mockApi = {
     saveToStorage(d);
   },
 
-  createQuestion: async (subTopicId, title) => {
+  createQuestion: async (subTopicId, { title, problemUrl, resource, difficulty }) => {
     await delay(150);
     const d = getData();
     const st = d.subTopics[subTopicId];
@@ -193,10 +193,10 @@ export const mockApi = {
       id,
       title,
       questionName: title,
-      difficulty: 'Medium',
+      difficulty: difficulty || 'Neutral',
       platform: '',
-      problemUrl: '',
-      resource: '',
+      problemUrl: problemUrl || '',
+      resource: resource || '',
       topics: [],
       isSolved: false,
     };

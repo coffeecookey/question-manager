@@ -20,7 +20,7 @@ import { useSheetStore } from '@/store/useSheetStore';
 import { QuestionRow } from './QuestionRow';
 import { InlineEdit } from './InlineEdit';
 import { DeleteConfirm } from './DeleteConfirm';
-import { AddItemInline } from './AddItemInline';
+import { AddQuestionForm } from './AddQuestionForm';
 
 export const SubTopicCard = ({ subTopic, topicId }) => {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -162,10 +162,8 @@ export const SubTopicCard = ({ subTopic, topicId }) => {
           )}
 
           <div className="mt-2 pl-8">
-            <AddItemInline
-              onAdd={(name) => addQuestion(subTopic.id, name)}
-              placeholder="Question title..."
-              buttonLabel="Add Question"
+            <AddQuestionForm
+              onAdd={(data) => addQuestion(subTopic.id, data)}
             />
           </div>
         </div>

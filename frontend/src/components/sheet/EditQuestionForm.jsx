@@ -1,0 +1,175 @@
+import { useState, useRef, useEffect } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { useSheetStore } from '@/store/useSheetStore';
+import { findDuplicateLocations } from '@/lib/duplicates';
+
+const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
+
+const DIFFICULTY_BUTTON_STYLES = {
+  Easy: 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300',
+  Medium: 'bg-amber-100 text-amber-700 ring-1 ring-amber-300',
+  Hard: 'bg-red-100 text-red-700 ring-1 ring-red-300',
+};
+
+export const EditQuestionForm = ({ question, onClose }) => {
+  const [title, setTitle] = useState(question.title);
+  const [problemUrl, setProblemUrl] = useState(question.problemUrl || '');
+  const [resource, setResource] = useState(question.resource || '');
+  const [difficulty, setDifficulty] = useState(question.difficulty || 'Neutral');
+  const [isDuplicate, setIsDuplicate] = useState(question.isDuplicate || false);
+  const titleRef = useRef(null);
+
+  const updateQuestion = useSheetStore((s) => s.updateQuestion);
+
+  const state = useSheetStore.getState();
+  const duplicateLocations = findDuplicateLocations(state, problemUrl, question.id);
+  const hasUrlDuplicates = duplicateLocations.length > 0;
+
+  useEffect(() => {
+    if (titleRef.current) {
+      titleRef.current.focus();
+    }
+  }, []);
+
+  const handleSave = () => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) return;
+
+    updateQuestion(question.id, {
+      title: trimmedTitle,
+      problemUrl: problemUrl.trim(),
+      resource: resource.trim(),
+      difficulty: difficulty || 'Neutral',
+      isDuplicate,
+    });
+    onClose();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      onClose();
+    }
+  };
+
+  return (
+    <div className="border border-border rounded-lg p-3 bg-muted/30 space-y-3 mt-1 mb-2">
+      {(hasUrlDuplicates || isDuplicate) && (
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-xs text-amber-800">
+            <span className="font-semibold">Duplicate question.</span>
+            {hasUrlDuplicates && (
+              <span>
+                {' '}This question already exists in:
+                {duplicateLocations.map((loc, i) => (
+                  <span key={loc.questionId}>
+                    {i > 0 && ','}{' '}
+                    <span className="font-medium">{loc.topicName}</span>
+                    {' > '}
+                    <span className="font-medium">{loc.subTopicName}</span>
+                    {' '}({loc.title})
+                  </span>
+                ))}
+              </span>
+            )}
+            {isDuplicate && !hasUrlDuplicates && (
+              <span> Manually marked as duplicate.</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <label className="text-xs font-medium text-muted-foreground block mb-1">
+          Question Title
+        </label>
+        <input
+          ref={titleRef}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="w-full text-sm bg-card border border-border rounded-md px-3 py-1.5 outline-none focus:border-primary transition-colors"
+          maxLength={200}
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-muted-foreground block mb-1">
+          Problem Link
+        </label>
+        <input
+          value={problemUrl}
+          onChange={(e) => setProblemUrl(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="https://leetcode.com/problems/..."
+          className="w-full text-sm bg-card border border-border rounded-md px-3 py-1.5 outline-none focus:border-primary transition-colors"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-muted-foreground block mb-1">
+          Video Solution Link
+        </label>
+        <input
+          value={resource}
+          onChange={(e) => setResource(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="https://youtu.be/..."
+          className="w-full text-sm bg-card border border-border rounded-md px-3 py-1.5 outline-none focus:border-primary transition-colors"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-muted-foreground block mb-1">
+          Difficulty
+        </label>
+        <div className="flex items-center gap-2">
+          {DIFFICULTIES.map((d) => (
+            <button
+              key={d}
+              onClick={() => setDifficulty(difficulty === d ? 'Neutral' : d)}
+              className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
+                difficulty === d
+                  ? DIFFICULTY_BUTTON_STYLES[d]
+                  : 'bg-muted text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isDuplicate}
+            onChange={(e) => setIsDuplicate(e.target.checked)}
+            className="w-3.5 h-3.5 rounded border-border accent-amber-500"
+          />
+          <span className="text-xs text-muted-foreground">Mark as duplicate</span>
+        </label>
+      </div>
+
+      <div className="flex items-center gap-2 pt-1">
+        <button
+          onClick={handleSave}
+          disabled={!title.trim()}
+          className="text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground px-4 py-1.5 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Save
+        </button>
+        <button
+          onClick={onClose}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md px-2 py-1.5"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+};
