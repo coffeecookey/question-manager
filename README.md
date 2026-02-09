@@ -131,31 +131,3 @@ Components subscribe via selectors to minimize re-renders:
 ```js
 const topics = useSheetStore((s) => s.topics);
 ```
-
-## Usage Guide
-
-| Action                  | How                                              |
-| ----------------------- | ------------------------------------------------ |
-| Add a topic             | Click "+ Add Topic" at the bottom of the page    |
-| Add a sub-topic         | Click "+ Add Sub-topic" inside a topic section   |
-| Add a question          | Click "+ Add Question" inside a sub-topic card   |
-| Edit any title          | Double-click the text                            |
-| Delete an item          | Hover to reveal the trash icon, then confirm     |
-| Reorder items           | Drag the grip handle (six dots) on the left      |
-| Mark as solved          | Click the circle checkbox next to a question     |
-| Open problem link       | Click the external link icon on a question row   |
-| Reset all data          | Click the reset icon in the top-right header     |
-| Collapse/expand section | Click the chevron arrow next to any title        |
-
-## Design Decisions
-
-1. **No routing**: Single-page, single-view application; the Zustand store is the single source of truth
-2. **No react-query**: Zustand handles all async state; adding a second state layer would be redundant
-3. **Nested DndContexts**: Each hierarchy level has its own DndContext to prevent drag event interference
-4. **Prefixed IDs**: Topics use `topic_`, sub-topics use `st_`, questions use `q_` prefixes to prevent ID collisions across levels
-5. **CSS custom properties**: Colors are stored as raw RGB channels (e.g., `99 102 241`) so Tailwind's opacity modifier syntax works (`bg-primary/10`)
-6. **No order field**: Position in the parent's ID array is the source of truth for ordering
-
-## License
-
-This project is for educational and personal use.
