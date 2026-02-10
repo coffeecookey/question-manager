@@ -3,7 +3,6 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Check, ExternalLink, Pencil, AlertTriangle } from 'lucide-react';
 import { useSheetStore } from '@/store/useSheetStore';
-import { findDuplicateLocations } from '@/lib/duplicates';
 import { InlineEdit } from './InlineEdit';
 import { DeleteConfirm } from './DeleteConfirm';
 import { EditQuestionForm } from './EditQuestionForm';
@@ -21,9 +20,10 @@ export const QuestionRow = ({ question, subTopicId, index, searchQuery = '' }) =
   const updateQuestion = useSheetStore((s) => s.updateQuestion);
   const deleteQuestion = useSheetStore((s) => s.deleteQuestion);
 
-  const state = useSheetStore.getState();
-  const urlDuplicates = findDuplicateLocations(state, question.problemUrl, question.id);
-  const showDuplicateBadge = question.isDuplicate || urlDuplicates.length > 0;
+  const urlIndex = useSheetStore((s) => s.urlIndex);
+  const hasUrlDuplicates = question.problemUrl
+    && urlIndex[question.problemUrl]?.some((id) => id !== question.id);
+  const showDuplicateBadge = question.isDuplicate || hasUrlDuplicates;
 
   const {
     attributes,

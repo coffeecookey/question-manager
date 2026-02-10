@@ -2,12 +2,63 @@ import { create } from 'zustand';
 import { mockApi } from '@/api/mock-api';
 import { toast } from 'sonner';
 
+function buildUrlIndex(questions) {
+  const index = {};
+  for (const q of Object.values(questions)) {
+    if (q.problemUrl) {
+      if (!index[q.problemUrl]) index[q.problemUrl] = [];
+      index[q.problemUrl].push(q.id);
+    }
+  }
+  return index;
+}
+
+function addToUrlIndex(index, url, id) {
+  if (!url) return index;
+  const newIndex = { ...index };
+  if (newIndex[url]) {
+    newIndex[url] = [...newIndex[url], id];
+  } else {
+    newIndex[url] = [id];
+  }
+  return newIndex;
+}
+
+function removeFromUrlIndex(index, url, id) {
+  if (!url || !index[url]) return index;
+  const newIndex = { ...index };
+  const filtered = newIndex[url].filter((qid) => qid !== id);
+  if (filtered.length === 0) {
+    delete newIndex[url];
+  } else {
+    newIndex[url] = filtered;
+  }
+  return newIndex;
+}
+
+function removeMultipleFromUrlIndex(index, questions, questionIds) {
+  let newIndex = { ...index };
+  for (const qId of questionIds) {
+    const q = questions[qId];
+    if (q?.problemUrl && newIndex[q.problemUrl]) {
+      const filtered = newIndex[q.problemUrl].filter((id) => id !== qId);
+      if (filtered.length === 0) {
+        delete newIndex[q.problemUrl];
+      } else {
+        newIndex[q.problemUrl] = filtered;
+      }
+    }
+  }
+  return newIndex;
+}
+
 export const useSheetStore = create((set, get) => ({
   sheet: null,
   topics: {},
   subTopics: {},
   questions: {},
   topicOrder: [],
+  urlIndex: {},
   isLoading: false,
 
   loadSheet: async () => {
@@ -20,6 +71,7 @@ export const useSheetStore = create((set, get) => ({
         subTopics: data.subTopics,
         questions: data.questions,
         topicOrder: data.topicOrder,
+        urlIndex: buildUrlIndex(data.questions),
         isLoading: false,
       });
     } catch (e) {
@@ -67,10 +119,17 @@ export const useSheetStore = create((set, get) => ({
       subTopics: { ...get().subTopics },
       questions: { ...get().questions },
       topicOrder: [...get().topicOrder],
+      urlIndex: get().urlIndex,
     };
 
     const topic = get().topics[id];
     if (!topic) return;
+
+    const removedQuestionIds = [];
+    topic.subTopicIds.forEach((stId) => {
+      const st = get().subTopics[stId];
+      if (st) removedQuestionIds.push(...st.questionIds);
+    });
 
     set((s) => {
       const newSubTopics = { ...s.subTopics };
@@ -92,6 +151,7 @@ export const useSheetStore = create((set, get) => ({
         subTopics: newSubTopics,
         questions: newQuestions,
         topicOrder: s.topicOrder.filter((tid) => tid !== id),
+        urlIndex: removeMultipleFromUrlIndex(s.urlIndex, s.questions, removedQuestionIds),
       };
     });
 
@@ -156,12 +216,16 @@ export const useSheetStore = create((set, get) => ({
       topics: { ...get().topics },
       subTopics: { ...get().subTopics },
       questions: { ...get().questions },
+      urlIndex: get().urlIndex,
     };
 
+    const st = get().subTopics[id];
+    const removedQuestionIds = st ? st.questionIds : [];
+
     set((s) => {
-      const st = s.subTopics[id];
+      const subTopic = s.subTopics[id];
       const newQuestions = { ...s.questions };
-      if (st) st.questionIds.forEach((qId) => delete newQuestions[qId]);
+      if (subTopic) subTopic.questionIds.forEach((qId) => delete newQuestions[qId]);
 
       const newSubTopics = { ...s.subTopics };
       delete newSubTopics[id];
@@ -178,6 +242,7 @@ export const useSheetStore = create((set, get) => ({
             ),
           },
         },
+        urlIndex: removeMultipleFromUrlIndex(s.urlIndex, s.questions, removedQuestionIds),
       };
     });
 
@@ -226,6 +291,7 @@ export const useSheetStore = create((set, get) => ({
             questionIds: [...s.subTopics[subTopicId].questionIds, q.id],
           },
         },
+        urlIndex: addToUrlIndex(s.urlIndex, q.problemUrl, q.id),
       }));
     } catch (e) {
       toast.error('Failed to add question');
@@ -234,21 +300,41 @@ export const useSheetStore = create((set, get) => ({
 
   updateQuestion: async (id, updates) => {
     const prev = get().questions[id];
-    set((s) => ({
-      questions: {
-        ...s.questions,
-        [id]: { ...s.questions[id], ...updates },
-      },
-    }));
+    set((s) => {
+      const newState = {
+        questions: {
+          ...s.questions,
+          [id]: { ...s.questions[id], ...updates },
+        },
+      };
+
+      if ('problemUrl' in updates && updates.problemUrl !== prev.problemUrl) {
+        let idx = removeFromUrlIndex(s.urlIndex, prev.problemUrl, id);
+        idx = addToUrlIndex(idx, updates.problemUrl, id);
+        newState.urlIndex = idx;
+      }
+
+      return newState;
+    });
     try {
       await mockApi.updateQuestion(id, updates);
     } catch (e) {
-      set((s) => ({
-        questions: {
-          ...s.questions,
-          [id]: prev,
-        },
-      }));
+      set((s) => {
+        const newState = {
+          questions: {
+            ...s.questions,
+            [id]: prev,
+          },
+        };
+
+        if ('problemUrl' in updates && updates.problemUrl !== prev.problemUrl) {
+          let idx = removeFromUrlIndex(s.urlIndex, updates.problemUrl, id);
+          idx = addToUrlIndex(idx, prev.problemUrl, id);
+          newState.urlIndex = idx;
+        }
+
+        return newState;
+      });
       toast.error('Failed to update question');
     }
   },
@@ -257,7 +343,10 @@ export const useSheetStore = create((set, get) => ({
     const snapshot = {
       questions: { ...get().questions },
       subTopics: { ...get().subTopics },
+      urlIndex: get().urlIndex,
     };
+
+    const q = get().questions[id];
 
     set((s) => {
       const newQuestions = { ...s.questions };
@@ -273,6 +362,7 @@ export const useSheetStore = create((set, get) => ({
             ),
           },
         },
+        urlIndex: removeFromUrlIndex(s.urlIndex, q?.problemUrl, id),
       };
     });
 

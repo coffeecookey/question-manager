@@ -20,10 +20,13 @@ export const EditQuestionForm = ({ question, onClose }) => {
   const titleRef = useRef(null);
 
   const updateQuestion = useSheetStore((s) => s.updateQuestion);
+  const urlIndex = useSheetStore((s) => s.urlIndex);
 
-  const state = useSheetStore.getState();
-  const duplicateLocations = findDuplicateLocations(state, problemUrl, question.id);
-  const hasUrlDuplicates = duplicateLocations.length > 0;
+  const urlEntries = problemUrl ? (urlIndex[problemUrl] || []) : [];
+  const hasUrlDuplicates = urlEntries.some((id) => id !== question.id);
+  const duplicateLocations = hasUrlDuplicates
+    ? findDuplicateLocations(useSheetStore.getState(), problemUrl, question.id)
+    : [];
 
   useEffect(() => {
     if (titleRef.current) {

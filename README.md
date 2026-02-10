@@ -1,18 +1,25 @@
 # Interactive Question Management Sheet
 
-A single-page web application for managing coding practice questions in a hierarchical structure. Built as a study companion for DSA sheets like Striver's A2Z DSA Sheet.
+A single-page web application for managing coding practice questions in a hierarchical structure. Built as a study companion for DSA sheets.
 
 ## Features
 
 - **Hierarchical Organization**: Topics > Sub-topics > Questions, with full CRUD at every level
-- **Drag and Drop Reordering**: Reorder topics, sub-topics, and questions independently using keyboard or pointer
-- **Progress Tracking**: Solved/unsolved counts, progress bars, and circular percentage indicators at every level
+- **Drag and Drop Reordering**: Reorder topics, sub-topics, and questions independently using keyboard or pointer, with vertical axis locking, lightweight drag overlays, and smooth translate transforms
 - **Inline Editing**: Double-click any title to rename it in place
-- **Difficulty Badges**: Color-coded labels (Easy, Medium, Hard) on each question
+- **Difficulty Badges**: Color-coded labels (Easy, Medium, Hard, Unmarked) on each question
 - **Persistent Storage**: All changes survive page refresh via localStorage
+
+### Bonus Features
+
+- **Global Search**: Debounced search across all topics, sub-topics, and questions with hierarchical filtering (topic match shows all children, question match shows only that row), text highlighting via `<mark>`, match count display, and a no-results empty state
+- **Dark Mode**: Light/dark theme toggle with system-aware default, persisted to localStorage, and a flash-free initial load via an inline script
+- **Duplicate Detection**: URL-based duplicate detection using a precomputed index for O(1) lookups on every question row, with detailed location info (Topic > Sub-topic > Title) shown in add/edit forms
+- **List Virtualization**: Sub-topics with 30+ questions use @tanstack/react-virtual to render only visible rows plus a buffer, keeping DOM size constant regardless of data size
+- **Pagination**: Configurable topics-per-page (10 or 20) with page navigation controls, hidden during search
+- **Progress Tracking**: Dashboard stats (total topics, total questions, solved percentage with progress bar), plus per-sub-topic solved/total counts and progress bars
 - **Optimistic Updates**: UI responds instantly; if the API fails, changes roll back automatically with an error toast
 - **Reset to Defaults**: One-click reset restores the original sample data
-- **Accessible**: Keyboard navigation for drag-and-drop, focus-visible indicators, and ARIA labels throughout
 
 ## Tech Stack
 
@@ -22,7 +29,8 @@ A single-page web application for managing coding practice questions in a hierar
 | Language          | JavaScript         |
 | State Management  | Zustand                             |
 | Styling           | Tailwind CSS 3                      |
-| Drag and Drop     | @dnd-kit (core + sortable)          |
+| Drag and Drop     | @dnd-kit (core + sortable + modifiers) |
+| Virtualization    | @tanstack/react-virtual             |
 | Icons             | Lucide React                        |
 | Toasts            | Sonner                              |
 | Build Tool        | Vite 7                              |
@@ -32,8 +40,8 @@ A single-page web application for managing coding practice questions in a hierar
 
 ### Prerequisites
 
-- Node.js 18 or higher
-- npm 9 or higher
+- Node.js
+- npm 
 
 ### Installation
 
@@ -48,14 +56,7 @@ npm install
 npm run dev
 ```
 
-Opens the app at `http://localhost:5173` with hot module replacement.
-
-### Production Build
-
-```bash
-npm run build
-npm run preview
-```
+Opens the app at `http://localhost:5173` 
 
 ## Project Structure
 
@@ -63,29 +64,36 @@ npm run preview
 frontend/
   src/
     api/
-      mock-api.js             
+      mock-api.js              # CRUD + reorder + localStorage persistence
     components/
       sheet/
-        AddItemInline.jsx      # Toggle input for adding new items
+        AddItemInline.jsx      # Toggle input for adding topics/sub-topics
+        AddQuestionForm.jsx    # Multi-field form for new questions with duplicate warning
         DeleteConfirm.jsx      # Two-step delete confirmation
-        InlineEdit.jsx         # Double-click-to-edit text field
-        QuestionRow.jsx        # Sortable question row with checkbox and badges
-        SheetView.jsx          # Main container with header stats and topic DnD
-        SubTopicCard.jsx       # Collapsible, sortable sub-topic with question DnD
+        EditQuestionForm.jsx   # Edit form with difficulty, links, duplicate info
+        HighlightText.jsx      # Wraps search matches in <mark> tags
+        InlineEdit.jsx         # Double-click-to-edit text field with search highlighting
+        QuestionRow.jsx        # Sortable question row with checkbox, badges, duplicate badge
+        SearchBar.jsx          # Debounced search input with clear button and match count
+        SheetView.jsx          # Main container with header, stats, pagination, topic DnD
+        SubTopicCard.jsx       # Collapsible sub-topic with question DnD and virtualization
+        ThemeToggle.jsx        # Light/dark mode toggle button
         TopicSection.jsx       # Collapsible, sortable topic with sub-topic DnD
     data/
       sheet.json               # Seed data (21 questions, 3 topics, 7 sub-topics)
     lib/
+      duplicates.js            # Rich duplicate location finder (for add/edit forms)
       id.js                    # UUID-based ID generator with type prefixes
+      search.js                # Hierarchical search filter with visibility Sets
     store/
-      useSheetStore.js         # Centralized Zustand store
+      useSheetStore.js         # Centralized Zustand store with urlIndex
     App.jsx                    # Root component (Toaster + SheetView)
     main.jsx                   # React entry point
-    index.css                  # Tailwind directives and CSS custom properties theme
-  index.html
+    index.css                  # Tailwind directives and light/dark CSS variable themes
+  index.html                   # Includes theme flash prevention script
   package.json
   vite.config.js               # Vite config with @ path alias
-  tailwind.config.js           # Custom color system using CSS variables
+  tailwind.config.js           # Custom color system using CSS variables, darkMode: 'class'
   postcss.config.js
   eslint.config.js
 ```
@@ -99,10 +107,14 @@ topicOrder: [id, id, ...]            // Array controls display order
 
 topics:     { [id]: { id, name, subTopicIds: [...] } }
 subTopics:  { [id]: { id, name, questionIds: [...] } }
-questions:  { [id]: { id, title, difficulty, isSolved, problemUrl, resource, ... } }
+questions:  { [id]: { id, title, difficulty, isSolved, problemUrl, resource, isDuplicate } }
+
+urlIndex:   { [problemUrl]: [questionId, ...] }   // Precomputed for O(1) duplicate lookups
 ```
 
 Parent-child relationships are encoded through ID arrays. Ordering is determined by array position, not a separate `order` field.
+
+The `urlIndex` is built once on load and incrementally maintained by every mutation that adds, removes, or updates a question's `problemUrl`. This avoids the O(T * S * Q) tree traversal that would otherwise run on every question row render.
 
 ## API Layer
 
@@ -131,3 +143,14 @@ Components subscribe via selectors to minimize re-renders:
 ```js
 const topics = useSheetStore((s) => s.topics);
 ```
+
+## Performance Optimizations
+
+| Optimization | Problem | Solution |
+| --- | --- | --- |
+| URL Index | Duplicate detection traversed the entire data tree per question row: O(T * S * Q) | Precomputed `urlIndex` map gives O(1) lookups; maintained incrementally on every mutation |
+| List Virtualization | Sub-topics with 200 questions mount 2,000+ DOM nodes | @tanstack/react-virtual renders only visible rows (~15) plus an overscan buffer (8), keeping DOM size constant |
+| Zustand Selectors | Subscribing to the full store causes re-renders on any change | Each component selects only the slices it needs, so unrelated mutations are ignored |
+| Optimistic Updates | Waiting for API responses before updating the UI feels sluggish | State is mutated immediately; a snapshot is taken beforehand and restored if the API call fails |
+| Debounced Search | Filtering on every keystroke causes layout thrashing | Search input is debounced (300ms); results are computed via `useMemo` only when the query stabilizes |
+| DragOverlay | Default @dnd-kit dragging moves the original element, causing layout shifts | A lightweight overlay clone is rendered during drag, and `CSS.Translate` avoids scale artifacts |

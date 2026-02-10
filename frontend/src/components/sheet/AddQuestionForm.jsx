@@ -66,9 +66,13 @@ export const AddQuestionForm = ({ onAdd }) => {
     );
   }
 
-  const state = useSheetStore.getState();
-  const duplicateLocations = findDuplicateLocations(state, problemUrl.trim());
-  const hasDuplicates = duplicateLocations.length > 0;
+  const urlIndex = useSheetStore((s) => s.urlIndex);
+  const trimmedUrl = problemUrl.trim();
+  const urlEntries = trimmedUrl ? (urlIndex[trimmedUrl] || []) : [];
+  const hasDuplicates = urlEntries.length > 0;
+  const duplicateLocations = hasDuplicates
+    ? findDuplicateLocations(useSheetStore.getState(), trimmedUrl)
+    : [];
 
   return (
     <div className="border border-border rounded-lg p-3 bg-muted/30 space-y-3">

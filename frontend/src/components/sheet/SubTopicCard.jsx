@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -18,11 +18,67 @@ import {
 } from '@dnd-kit/sortable';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { GripVertical, ChevronDown, ChevronRight } from 'lucide-react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useSheetStore } from '@/store/useSheetStore';
 import { QuestionRow } from './QuestionRow';
 import { InlineEdit } from './InlineEdit';
 import { DeleteConfirm } from './DeleteConfirm';
 import { AddQuestionForm } from './AddQuestionForm';
+
+const VIRTUALIZE_THRESHOLD = 30;
+const MAX_VISIBLE_HEIGHT = 600;
+const ROW_HEIGHT = 40;
+
+const VirtualQuestionList = ({ questionList, subTopicId, searchQuery }) => {
+  const parentRef = useRef(null);
+  const virtualizer = useVirtualizer({
+    count: questionList.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 8,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      className="overflow-y-auto overscroll-contain"
+      style={{ maxHeight: MAX_VISIBLE_HEIGHT }}
+    >
+      <div
+        style={{
+          height: virtualizer.getTotalSize(),
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const q = questionList[virtualRow.index];
+          return (
+            <div
+              key={q.id}
+              data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <QuestionRow
+                question={q}
+                subTopicId={subTopicId}
+                index={virtualRow.index}
+                searchQuery={searchQuery}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export const SubTopicCard = ({ subTopic, topicId, searchQuery = '', searchResults = null }) => {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -172,17 +228,25 @@ export const SubTopicCard = ({ subTopic, topicId, searchQuery = '', searchResult
                 items={questionList.map((q) => q.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="space-y-0.5">
-                  {questionList.map((q, i) => (
-                    <QuestionRow
-                      key={q.id}
-                      question={q}
-                      subTopicId={subTopic.id}
-                      index={i}
-                      searchQuery={searchQuery}
-                    />
-                  ))}
-                </div>
+                {questionList.length >= VIRTUALIZE_THRESHOLD ? (
+                  <VirtualQuestionList
+                    questionList={questionList}
+                    subTopicId={subTopic.id}
+                    searchQuery={searchQuery}
+                  />
+                ) : (
+                  <div className="space-y-0.5">
+                    {questionList.map((q, i) => (
+                      <QuestionRow
+                        key={q.id}
+                        question={q}
+                        subTopicId={subTopic.id}
+                        index={i}
+                        searchQuery={searchQuery}
+                      />
+                    ))}
+                  </div>
+                )}
               </SortableContext>
               <DragOverlay dropAnimation={{ duration: 200, easing: 'ease' }}>
                 {activeQuestion && (
