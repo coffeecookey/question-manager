@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
+import { HighlightText } from './HighlightText';
 
-export const InlineEdit = ({ value, onSave, className = '', as: Tag = 'span' }) => {
+export const InlineEdit = ({ value, onSave, className = '', as: Tag = 'span', searchQuery = '' }) => {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(value);
   const inputRef = useRef(null);
@@ -60,7 +61,7 @@ export const InlineEdit = ({ value, onSave, className = '', as: Tag = 'span' }) 
         if (e.key === 'Enter' || e.key === 'F2') setEditing(true);
       }}
     >
-      {value}
+      <HighlightText text={value} query={searchQuery} />
     </Tag>
   );
 };

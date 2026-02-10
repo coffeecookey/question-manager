@@ -22,14 +22,17 @@ import { InlineEdit } from './InlineEdit';
 import { DeleteConfirm } from './DeleteConfirm';
 import { AddItemInline } from './AddItemInline';
 
-export const TopicSection = ({ topic }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+export const TopicSection = ({ topic, searchQuery = '', searchResults = null }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const subTopics = useSheetStore((s) => s.subTopics);
   const questions = useSheetStore((s) => s.questions);
   const updateTopic = useSheetStore((s) => s.updateTopic);
   const deleteTopic = useSheetStore((s) => s.deleteTopic);
   const addSubTopic = useSheetStore((s) => s.addSubTopic);
   const reorderSubTopics = useSheetStore((s) => s.reorderSubTopics);
+
+  const isSearching = searchQuery.trim().length > 0;
+  const expanded = isSearching ? true : isExpanded;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -50,16 +53,20 @@ export const TopicSection = ({ topic }) => {
     transition,
   };
 
-  const subTopicList = topic.subTopicIds
+  const allSubTopicList = topic.subTopicIds
     .map((id) => subTopics[id])
     .filter(Boolean);
 
-  const totalQuestions = subTopicList.reduce(
+  const subTopicList = isSearching && searchResults
+    ? allSubTopicList.filter((st) => searchResults.visibleSubTopicIds.has(st.id))
+    : allSubTopicList;
+
+  const totalQuestions = allSubTopicList.reduce(
     (sum, st) => sum + st.questionIds.length,
     0
   );
 
-  const totalSolved = subTopicList.reduce((sum, st) => {
+  const totalSolved = allSubTopicList.reduce((sum, st) => {
     return (
       sum +
       st.questionIds.filter((qId) => questions[qId]?.isSolved).length
@@ -101,9 +108,9 @@ export const TopicSection = ({ topic }) => {
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className="text-muted-foreground hover:text-foreground transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-          aria-label={isExpanded ? 'Collapse' : 'Expand'}
+          aria-label={expanded ? 'Collapse' : 'Expand'}
         >
-          {isExpanded ? (
+          {expanded ? (
             <ChevronDown size={18} />
           ) : (
             <ChevronRight size={18} />
@@ -116,10 +123,14 @@ export const TopicSection = ({ topic }) => {
             onSave={(val) => updateTopic(topic.id, val)}
             className="text-base font-bold text-foreground"
             as="h2"
+            searchQuery={searchQuery}
           />
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          <span className="text-xs text-muted-foreground">
+            {allSubTopicList.length} sub-topic{allSubTopicList.length !== 1 ? 's' : ''}
+          </span>
           <span className="text-xs text-muted-foreground font-mono">
             {totalSolved}/{totalQuestions} solved
           </span>
@@ -167,11 +178,11 @@ export const TopicSection = ({ topic }) => {
         </div>
       </div>
 
-      {isExpanded && (
+      {expanded && (
         <div className="px-4 pb-4">
           {subTopicList.length === 0 ? (
             <div className="text-sm text-muted-foreground py-6 text-center italic">
-              No sub-topics yet. Add one to get started.
+              {isSearching ? 'No matching sub-topics' : 'No sub-topics yet. Add one to get started.'}
             </div>
           ) : (
             <DndContext
@@ -180,7 +191,7 @@ export const TopicSection = ({ topic }) => {
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={topic.subTopicIds}
+                items={subTopicList.map((st) => st.id)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-2">
@@ -189,6 +200,8 @@ export const TopicSection = ({ topic }) => {
                       key={st.id}
                       subTopic={st}
                       topicId={topic.id}
+                      searchQuery={searchQuery}
+                      searchResults={searchResults}
                     />
                   ))}
                 </div>
@@ -196,13 +209,15 @@ export const TopicSection = ({ topic }) => {
             </DndContext>
           )}
 
-          <div className="mt-3 pl-6">
-            <AddItemInline
-              onAdd={(name) => addSubTopic(topic.id, name)}
-              placeholder="Sub-topic name..."
-              buttonLabel="Add Sub-topic"
-            />
-          </div>
+          {!isSearching && (
+            <div className="mt-3 pl-6">
+              <AddItemInline
+                onAdd={(name) => addSubTopic(topic.id, name)}
+                placeholder="Sub-topic name..."
+                buttonLabel="Add Sub-topic"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

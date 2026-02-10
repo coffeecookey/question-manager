@@ -22,13 +22,16 @@ import { InlineEdit } from './InlineEdit';
 import { DeleteConfirm } from './DeleteConfirm';
 import { AddQuestionForm } from './AddQuestionForm';
 
-export const SubTopicCard = ({ subTopic, topicId }) => {
+export const SubTopicCard = ({ subTopic, topicId, searchQuery = '', searchResults = null }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const questions = useSheetStore((s) => s.questions);
   const updateSubTopic = useSheetStore((s) => s.updateSubTopic);
   const deleteSubTopic = useSheetStore((s) => s.deleteSubTopic);
   const addQuestion = useSheetStore((s) => s.addQuestion);
   const reorderQuestions = useSheetStore((s) => s.reorderQuestions);
+
+  const isSearching = searchQuery.trim().length > 0;
+  const expanded = isSearching ? true : isExpanded;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -49,11 +52,15 @@ export const SubTopicCard = ({ subTopic, topicId }) => {
     transition,
   };
 
-  const questionList = subTopic.questionIds
+  const allQuestionList = subTopic.questionIds
     .map((id) => questions[id])
     .filter(Boolean);
 
-  const solvedCount = questionList.filter((q) => q.isSolved).length;
+  const questionList = isSearching && searchResults
+    ? allQuestionList.filter((q) => searchResults.visibleQuestionIds.has(q.id))
+    : allQuestionList;
+
+  const solvedCount = allQuestionList.filter((q) => q.isSolved).length;
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -90,9 +97,9 @@ export const SubTopicCard = ({ subTopic, topicId }) => {
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className="text-muted-foreground hover:text-foreground transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-          aria-label={isExpanded ? 'Collapse' : 'Expand'}
+          aria-label={expanded ? 'Collapse' : 'Expand'}
         >
-          {isExpanded ? (
+          {expanded ? (
             <ChevronDown size={16} />
           ) : (
             <ChevronRight size={16} />
@@ -104,19 +111,20 @@ export const SubTopicCard = ({ subTopic, topicId }) => {
             value={subTopic.name}
             onSave={(val) => updateSubTopic(subTopic.id, val)}
             className="text-sm font-semibold text-foreground"
+            searchQuery={searchQuery}
           />
         </div>
 
         <span className="text-xs text-muted-foreground font-mono ml-auto mr-2 shrink-0">
-          {solvedCount}/{questionList.length}
+          {solvedCount}/{allQuestionList.length}
         </span>
 
         <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden mr-2 hidden sm:block shrink-0">
           <div
             className="h-full bg-accent rounded-full transition-all duration-300"
             style={{
-              width: questionList.length
-                ? `${(solvedCount / questionList.length) * 100}%`
+              width: allQuestionList.length
+                ? `${(solvedCount / allQuestionList.length) * 100}%`
                 : '0%',
             }}
           />
@@ -131,11 +139,11 @@ export const SubTopicCard = ({ subTopic, topicId }) => {
         </div>
       </div>
 
-      {isExpanded && (
+      {expanded && (
         <div className="px-3 pb-3">
           {questionList.length === 0 ? (
             <div className="text-sm text-muted-foreground py-4 text-center italic">
-              No questions yet
+              {isSearching ? 'No matching questions' : 'No questions yet'}
             </div>
           ) : (
             <DndContext
@@ -144,7 +152,7 @@ export const SubTopicCard = ({ subTopic, topicId }) => {
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={subTopic.questionIds}
+                items={questionList.map((q) => q.id)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-0.5">
@@ -154,6 +162,7 @@ export const SubTopicCard = ({ subTopic, topicId }) => {
                       question={q}
                       subTopicId={subTopic.id}
                       index={i}
+                      searchQuery={searchQuery}
                     />
                   ))}
                 </div>
@@ -161,11 +170,13 @@ export const SubTopicCard = ({ subTopic, topicId }) => {
             </DndContext>
           )}
 
-          <div className="mt-2 pl-8">
-            <AddQuestionForm
-              onAdd={(data) => addQuestion(subTopic.id, data)}
-            />
-          </div>
+          {!isSearching && (
+            <div className="mt-2 pl-8">
+              <AddQuestionForm
+                onAdd={(data) => addQuestion(subTopic.id, data)}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

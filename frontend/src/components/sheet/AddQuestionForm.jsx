@@ -35,7 +35,7 @@ export const AddQuestionForm = ({ onAdd }) => {
       title: trimmedTitle,
       problemUrl: problemUrl.trim(),
       resource: resource.trim(),
-      difficulty: difficulty || 'Neutral',
+      difficulty: difficulty || 'Unmarked',
     });
 
     setTitle('');
@@ -101,9 +101,9 @@ export const AddQuestionForm = ({ onAdd }) => {
       </div>
 
       {hasDuplicates && (
-        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-          <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
-          <div className="text-xs text-amber-800">
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 dark:bg-amber-950/50 dark:border-amber-800 rounded-md px-3 py-2">
+          <AlertTriangle size={14} className="text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+          <div className="text-xs text-amber-800 dark:text-amber-300">
             <span className="font-semibold">Duplicate detected.</span>
             <span>
               {' '}This question already exists in:
@@ -146,10 +146,10 @@ export const AddQuestionForm = ({ onAdd }) => {
               className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
                 difficulty === d
                   ? d === 'Easy'
-                    ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300'
+                    ? 'bg-emerald-50/70 text-emerald-600 ring-1 ring-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:ring-emerald-700'
                     : d === 'Medium'
-                    ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-300'
-                    : 'bg-red-100 text-red-700 ring-1 ring-red-300'
+                    ? 'bg-amber-50/70 text-amber-600 ring-1 ring-amber-200 dark:bg-amber-900/40 dark:text-amber-400 dark:ring-amber-700'
+                    : 'bg-red-50/70 text-red-600 ring-1 ring-red-200 dark:bg-red-900/40 dark:text-red-400 dark:ring-red-700'
                   : 'bg-muted text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -167,7 +167,7 @@ export const AddQuestionForm = ({ onAdd }) => {
         </div>
         {!difficulty && (
           <p className="text-[10px] text-muted-foreground mt-1">
-            Will be marked as Neutral if not selected
+            Will be marked as Unmarked if not selected
           </p>
         )}
       </div>

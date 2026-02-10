@@ -1,4 +1,4 @@
-# Codolio - Interactive Question Management Sheet
+# Interactive Question Management Sheet
 
 A single-page web application for managing coding practice questions in a hierarchical structure. Built as a study companion for DSA sheets like Striver's A2Z DSA Sheet.
 
@@ -19,7 +19,7 @@ A single-page web application for managing coding practice questions in a hierar
 | Layer             | Technology                          |
 | ----------------- | ----------------------------------- |
 | Framework         | React 19                            |
-| Language          | JavaScript (no TypeScript)          |
+| Language          | JavaScript         |
 | State Management  | Zustand                             |
 | Styling           | Tailwind CSS 3                      |
 | Drag and Drop     | @dnd-kit (core + sortable)          |

@@ -193,7 +193,7 @@ export const mockApi = {
       id,
       title,
       questionName: title,
-      difficulty: difficulty || 'Neutral',
+      difficulty: difficulty || 'Unmarked',
       platform: '',
       problemUrl: problemUrl || '',
       resource: resource || '',

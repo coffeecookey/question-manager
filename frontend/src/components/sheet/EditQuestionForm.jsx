@@ -6,16 +6,16 @@ import { findDuplicateLocations } from '@/lib/duplicates';
 const DIFFICULTIES = ['Easy', 'Medium', 'Hard'];
 
 const DIFFICULTY_BUTTON_STYLES = {
-  Easy: 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300',
-  Medium: 'bg-amber-100 text-amber-700 ring-1 ring-amber-300',
-  Hard: 'bg-red-100 text-red-700 ring-1 ring-red-300',
+  Easy: 'bg-emerald-50/70 text-emerald-600 ring-1 ring-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:ring-emerald-700',
+  Medium: 'bg-amber-50/70 text-amber-600 ring-1 ring-amber-200 dark:bg-amber-900/40 dark:text-amber-400 dark:ring-amber-700',
+  Hard: 'bg-red-50/70 text-red-600 ring-1 ring-red-200 dark:bg-red-900/40 dark:text-red-400 dark:ring-red-700',
 };
 
 export const EditQuestionForm = ({ question, onClose }) => {
   const [title, setTitle] = useState(question.title);
   const [problemUrl, setProblemUrl] = useState(question.problemUrl || '');
   const [resource, setResource] = useState(question.resource || '');
-  const [difficulty, setDifficulty] = useState(question.difficulty || 'Neutral');
+  const [difficulty, setDifficulty] = useState(question.difficulty || 'Unmarked');
   const [isDuplicate, setIsDuplicate] = useState(question.isDuplicate || false);
   const titleRef = useRef(null);
 
@@ -39,7 +39,7 @@ export const EditQuestionForm = ({ question, onClose }) => {
       title: trimmedTitle,
       problemUrl: problemUrl.trim(),
       resource: resource.trim(),
-      difficulty: difficulty || 'Neutral',
+      difficulty: difficulty || 'Unmarked',
       isDuplicate,
     });
     onClose();
@@ -57,9 +57,9 @@ export const EditQuestionForm = ({ question, onClose }) => {
   return (
     <div className="border border-border rounded-lg p-3 bg-muted/30 space-y-3 mt-1 mb-2">
       {(hasUrlDuplicates || isDuplicate) && (
-        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-          <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
-          <div className="text-xs text-amber-800">
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 dark:bg-amber-950/50 dark:border-amber-800 rounded-md px-3 py-2">
+          <AlertTriangle size={14} className="text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+          <div className="text-xs text-amber-800 dark:text-amber-300">
             <span className="font-semibold">Duplicate question.</span>
             {hasUrlDuplicates && (
               <span>
@@ -130,7 +130,7 @@ export const EditQuestionForm = ({ question, onClose }) => {
           {DIFFICULTIES.map((d) => (
             <button
               key={d}
-              onClick={() => setDifficulty(difficulty === d ? 'Neutral' : d)}
+              onClick={() => setDifficulty(difficulty === d ? 'Unmarked' : d)}
               className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
                 difficulty === d
                   ? DIFFICULTY_BUTTON_STYLES[d]
