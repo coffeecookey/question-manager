@@ -5,20 +5,18 @@ A single-page web application for managing coding practice questions in a hierar
 ## Features
 
 - **Hierarchical Organization**: Topics > Sub-topics > Questions, with full CRUD at every level
-- **Drag and Drop Reordering**: Reorder topics, sub-topics, and questions independently using keyboard or pointer, with vertical axis locking, lightweight drag overlays, and smooth translate transforms
+- **Drag and Drop Reordering**: Reorder topics, sub-topics, and questions independently using keyboard or pointer
 - **Inline Editing**: Double-click any title to rename it in place
 - **Difficulty Badges**: Color-coded labels (Easy, Medium, Hard, Unmarked) on each question
 - **Persistent Storage**: All changes survive page refresh via localStorage
 
 ### Bonus Features
 
-- **Global Search**: Debounced search across all topics, sub-topics, and questions with hierarchical filtering (topic match shows all children, question match shows only that row), text highlighting via `<mark>`, match count display, and a no-results empty state
-- **Dark Mode**: Light/dark theme toggle with system-aware default, persisted to localStorage, and a flash-free initial load via an inline script
-- **Duplicate Detection**: URL-based duplicate detection using a precomputed index for O(1) lookups on every question row, with detailed location info (Topic > Sub-topic > Title) shown in add/edit forms
-- **List Virtualization**: Sub-topics with 30+ questions use @tanstack/react-virtual to render only visible rows plus a buffer, keeping DOM size constant regardless of data size
-- **Pagination**: Configurable topics-per-page (10 or 20) with page navigation controls, hidden during search
-- **Progress Tracking**: Dashboard stats (total topics, total questions, solved percentage with progress bar), plus per-sub-topic solved/total counts and progress bars
-- **Optimistic Updates**: UI responds instantly; if the API fails, changes roll back automatically with an error toast
+- **Global Search**: Search across all topics, sub-topics, and questions with text highlighting and match count
+- **Dark Mode**: Light/dark theme toggle persisted to localStorage
+- **Duplicate Detection**: Warns when adding a question with a URL that already exists elsewhere
+- **Pagination**: Configurable topics-per-page (10 or 20) with page navigation
+- **Progress Tracking**: Dashboard stats (total topics, total questions, solved percentage) and per-sub-topic progress bars
 - **Reset to Defaults**: One-click reset restores the original sample data
 
 ## Tech Stack
@@ -29,8 +27,7 @@ A single-page web application for managing coding practice questions in a hierar
 | Language          | JavaScript         |
 | State Management  | Zustand                             |
 | Styling           | Tailwind CSS 3                      |
-| Drag and Drop     | @dnd-kit (core + sortable + modifiers) |
-| Virtualization    | @tanstack/react-virtual             |
+| Drag and Drop     | @dnd-kit (core + sortable)          |
 | Icons             | Lucide React                        |
 | Toasts            | Sonner                              |
 | Build Tool        | Vite 7                              |
@@ -74,83 +71,52 @@ frontend/
         HighlightText.jsx      # Wraps search matches in <mark> tags
         InlineEdit.jsx         # Double-click-to-edit text field with search highlighting
         QuestionRow.jsx        # Sortable question row with checkbox, badges, duplicate badge
-        SearchBar.jsx          # Debounced search input with clear button and match count
+        SearchBar.jsx          # Search input with clear button and match count
         SheetView.jsx          # Main container with header, stats, pagination, topic DnD
-        SubTopicCard.jsx       # Collapsible sub-topic with question DnD and virtualization
+        SubTopicCard.jsx       # Collapsible sub-topic with question DnD
         ThemeToggle.jsx        # Light/dark mode toggle button
         TopicSection.jsx       # Collapsible, sortable topic with sub-topic DnD
     data/
       sheet.json               # Seed data (21 questions, 3 topics, 7 sub-topics)
     lib/
-      duplicates.js            # Rich duplicate location finder (for add/edit forms)
-      id.js                    # UUID-based ID generator with type prefixes
-      search.js                # Hierarchical search filter with visibility Sets
+      duplicates.js            # Duplicate URL checker for add/edit forms
+      id.js                    # ID generator
+      search.js                # Search filter across topics, sub-topics, and questions
     store/
-      useSheetStore.js         # Centralized Zustand store with urlIndex
+      useSheetStore.js         # Centralized Zustand store
     App.jsx                    # Root component (Toaster + SheetView)
     main.jsx                   # React entry point
-    index.css                  # Tailwind directives and light/dark CSS variable themes
-  index.html                   # Includes theme flash prevention script
+    index.css                  # Tailwind directives and theme colors
+  index.html
   package.json
   vite.config.js               # Vite config with @ path alias
-  tailwind.config.js           # Custom color system using CSS variables, darkMode: 'class'
+  tailwind.config.js           # Tailwind config with dark mode support
   postcss.config.js
   eslint.config.js
 ```
 
 ## Data Model
 
-The store uses a **normalized flat structure** for efficient lookups and updates:
+The store keeps topics, sub-topics, and questions in flat objects keyed by ID:
 
 ```
 topicOrder: [id, id, ...]            // Array controls display order
 
 topics:     { [id]: { id, name, subTopicIds: [...] } }
 subTopics:  { [id]: { id, name, questionIds: [...] } }
-questions:  { [id]: { id, title, difficulty, isSolved, problemUrl, resource, isDuplicate } }
-
-urlIndex:   { [problemUrl]: [questionId, ...] }   // Precomputed for O(1) duplicate lookups
+questions:  { [id]: { id, title, difficulty, isSolved, problemUrl, resource } }
 ```
 
-Parent-child relationships are encoded through ID arrays. Ordering is determined by array position, not a separate `order` field.
-
-The `urlIndex` is built once on load and incrementally maintained by every mutation that adds, removes, or updates a question's `problemUrl`. This avoids the O(T * S * Q) tree traversal that would otherwise run on every question row render.
+Parent-child relationships are encoded through ID arrays. Ordering is determined by array position.
 
 ## API Layer
 
 The mock API in `src/api/mock-api.js` simulates a REST backend:
 
 - All methods are async with artificial delays
-- On first load, parses `sheet.json` into normalized form
+- On first load, parses `sheet.json` into the store format
 - On subsequent loads, reads from localStorage
 - Every mutation writes back to localStorage
 - Supports a `resetData()` method to restore defaults
 
 To swap in a real backend, replace the exports of this single file with actual HTTP calls.
-
-## State Management
-
-The Zustand store uses three mutation strategies:
-
-| Strategy               | Used For                              | Behavior                                                    |
-| ---------------------- | ------------------------------------- | ----------------------------------------------------------- |
-| Optimistic + rollback  | Updates, deletes, reorders, toggles   | Snapshot state, mutate, call API; revert on failure          |
-| Await then update      | Creates (add topic/sub-topic/question)| Wait for API response, then merge new entity into state      |
-| Fire and forget        | Not used                              | All mutations include error handling                         |
-
-Components subscribe via selectors to minimize re-renders:
-
-```js
-const topics = useSheetStore((s) => s.topics);
-```
-
-## Performance Optimizations
-
-| Optimization | Problem | Solution |
-| --- | --- | --- |
-| URL Index | Duplicate detection traversed the entire data tree per question row: O(T * S * Q) | Precomputed `urlIndex` map gives O(1) lookups; maintained incrementally on every mutation |
-| List Virtualization | Sub-topics with 200 questions mount 2,000+ DOM nodes | @tanstack/react-virtual renders only visible rows (~15) plus an overscan buffer (8), keeping DOM size constant |
-| Zustand Selectors | Subscribing to the full store causes re-renders on any change | Each component selects only the slices it needs, so unrelated mutations are ignored |
-| Optimistic Updates | Waiting for API responses before updating the UI feels sluggish | State is mutated immediately; a snapshot is taken beforehand and restored if the API call fails |
-| Debounced Search | Filtering on every keystroke causes layout thrashing | Search input is debounced (300ms); results are computed via `useMemo` only when the query stabilizes |
-| DragOverlay | Default @dnd-kit dragging moves the original element, causing layout shifts | A lightweight overlay clone is rendered during drag, and `CSS.Translate` avoids scale artifacts |
