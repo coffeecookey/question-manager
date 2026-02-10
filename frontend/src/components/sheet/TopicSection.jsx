@@ -3,6 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   PointerSensor,
   KeyboardSensor,
@@ -15,6 +16,7 @@ import {
   sortableKeyboardCoordinates,
   arrayMove,
 } from '@dnd-kit/sortable';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { GripVertical, ChevronDown, ChevronRight } from 'lucide-react';
 import { useSheetStore } from '@/store/useSheetStore';
 import { SubTopicCard } from './SubTopicCard';
@@ -24,6 +26,7 @@ import { AddItemInline } from './AddItemInline';
 
 export const TopicSection = ({ topic, searchQuery = '', searchResults = null }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [activeDragId, setActiveDragId] = useState(null);
   const subTopics = useSheetStore((s) => s.subTopics);
   const questions = useSheetStore((s) => s.questions);
   const updateTopic = useSheetStore((s) => s.updateTopic);
@@ -49,7 +52,7 @@ export const TopicSection = ({ topic, searchQuery = '', searchResults = null }) 
   } = useSortable({ id: topic.id, data: { type: 'topic' } });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
   };
 
@@ -73,7 +76,12 @@ export const TopicSection = ({ topic, searchQuery = '', searchResults = null }) 
     );
   }, 0);
 
+  const handleDragStart = (event) => {
+    setActiveDragId(String(event.active.id));
+  };
+
   const handleDragEnd = (event) => {
+    setActiveDragId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -86,6 +94,12 @@ export const TopicSection = ({ topic, searchQuery = '', searchResults = null }) 
       arrayMove(topic.subTopicIds, oldIndex, newIndex)
     );
   };
+
+  const handleDragCancel = () => {
+    setActiveDragId(null);
+  };
+
+  const activeSubTopic = activeDragId ? subTopics[activeDragId] : null;
 
   return (
     <div
@@ -188,7 +202,10 @@ export const TopicSection = ({ topic, searchQuery = '', searchResults = null }) 
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              modifiers={[restrictToVerticalAxis]}
+              onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
             >
               <SortableContext
                 items={subTopicList.map((st) => st.id)}
@@ -206,6 +223,14 @@ export const TopicSection = ({ topic, searchQuery = '', searchResults = null }) 
                   ))}
                 </div>
               </SortableContext>
+              <DragOverlay dropAnimation={{ duration: 200, easing: 'ease' }}>
+                {activeSubTopic && (
+                  <div className="rounded-lg border border-primary/40 bg-card shadow-xl px-4 py-3 flex items-center gap-2 opacity-90">
+                    <GripVertical size={14} className="text-muted-foreground" />
+                    <span className="text-sm font-semibold text-foreground">{activeSubTopic.name}</span>
+                  </div>
+                )}
+              </DragOverlay>
             </DndContext>
           )}
 

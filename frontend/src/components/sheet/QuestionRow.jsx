@@ -38,7 +38,7 @@ export const QuestionRow = ({ question, subTopicId, index, searchQuery = '' }) =
   });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
   };
 

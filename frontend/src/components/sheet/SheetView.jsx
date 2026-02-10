@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   PointerSensor,
   KeyboardSensor,
@@ -13,10 +14,11 @@ import {
   sortableKeyboardCoordinates,
   arrayMove,
 } from '@dnd-kit/sortable';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { useSheetStore } from '@/store/useSheetStore';
 import { TopicSection } from './TopicSection';
 import { AddItemInline } from './AddItemInline';
-import { BookOpen, Loader2, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, Loader2, RotateCcw, ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
 import { mockApi } from '@/api/mock-api';
 import { toast } from 'sonner';
 import { ThemeToggle } from './ThemeToggle';
@@ -37,6 +39,7 @@ export const SheetView = () => {
   const [page, setPage] = useState(0);
   const [perPage, setPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeDragId, setActiveDragId] = useState(null);
 
   const searchResults = useMemo(
     () => filterBySearch({ topics, subTopics, questions, topicOrder }, searchQuery),
@@ -64,7 +67,12 @@ export const SheetView = () => {
     loadSheet();
   }, [loadSheet]);
 
+  const handleDragStart = (event) => {
+    setActiveDragId(String(event.active.id));
+  };
+
   const handleDragEnd = (event) => {
+    setActiveDragId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -74,6 +82,12 @@ export const SheetView = () => {
 
     reorderTopics(arrayMove(topicOrder, oldIndex, newIndex));
   };
+
+  const handleDragCancel = () => {
+    setActiveDragId(null);
+  };
+
+  const activeTopic = activeDragId ? topics[activeDragId] : null;
 
   const handleReset = async () => {
     await mockApi.resetData();
@@ -216,7 +230,10 @@ export const SheetView = () => {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis]}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
             <SortableContext
               items={paginatedOrder}
@@ -237,6 +254,14 @@ export const SheetView = () => {
                 })}
               </div>
             </SortableContext>
+            <DragOverlay dropAnimation={{ duration: 200, easing: 'ease' }}>
+              {activeTopic && (
+                <div className="rounded-xl border border-primary/40 bg-card shadow-xl px-5 py-4 flex items-center gap-3 opacity-90">
+                  <GripVertical size={16} className="text-muted-foreground" />
+                  <span className="text-base font-bold text-foreground">{activeTopic.name}</span>
+                </div>
+              )}
+            </DragOverlay>
           </DndContext>
         )}
 
