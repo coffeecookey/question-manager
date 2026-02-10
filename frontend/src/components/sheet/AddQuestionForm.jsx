@@ -12,6 +12,7 @@ export const AddQuestionForm = ({ onAdd }) => {
   const [resource, setResource] = useState('');
   const [difficulty, setDifficulty] = useState('');
   const titleRef = useRef(null);
+  const urlIndex = useSheetStore((s) => s.urlIndex);
 
   useEffect(() => {
     if (isAdding && titleRef.current) {
@@ -66,7 +67,6 @@ export const AddQuestionForm = ({ onAdd }) => {
     );
   }
 
-  const urlIndex = useSheetStore((s) => s.urlIndex);
   const trimmedUrl = problemUrl.trim();
   const urlEntries = trimmedUrl ? (urlIndex[trimmedUrl] || []) : [];
   const hasDuplicates = urlEntries.length > 0;
